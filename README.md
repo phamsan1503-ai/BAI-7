@@ -11,7 +11,7 @@ _Bài tập yêu cầu:_
 - Gửi một byte dữ liệu và nhận phản hồi, hiển thị dữ liệu nhận được lên terminal
 
 
-***File code kết quả: [Link](https://github.com/phamsan1503-ai/BAI-5)***
+***File code kết quả: [Link](https://github.com/phamsan1503-ai/BAI-7)***
 
 
 ### I. Kết nối với module SPI Max7219
@@ -36,7 +36,7 @@ _Bài tập yêu cầu:_
 
 - Lặp lại mãi → hiệu ứng “sáng dần rồi tắt dần”.
 
-### II. Gửi chuỗi "Hello from STM32" tới máy tính
+### II. Gửi một byte dữ liệu và nhận phản hồi, hiển thị dữ liệu nhận được lên terminal
 
 1. Sau khi nạp code vào STM32F103:
 
@@ -72,4 +72,4 @@ _Bài tập yêu cầu:_
 
 => Kết quả: LED hiển thị chạy liên tục (không cần reset STM32).
 
-***Video  kết quả: [Link](https://drive.google.com/drive/folders/1pxEtEL510zTSKQkZHq40Ss9nMOm-HtgT?usp=drive_link)***
+***Video  kết quả: [Link](https://drive.google.com/drive/folders/1k93tgsqX8-rIK2TkhtnaA3ixFbzGyhiK?usp=drive_link)***
