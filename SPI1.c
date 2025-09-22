@@ -1,94 +1,92 @@
 #include "stm32f10x.h"
+#include "stm32f10x_rcc.h"
+#include "stm32f10x_gpio.h"
+#include "stm32f10x_spi.h"
+#include "stm32f10x_tim.h"
 
+#define CS_PIN   GPIO_Pin_4
+#define CS_PORT  GPIOA
 
-#define MAX7219_CS_LOW()   GPIO_ResetBits(GPIOA, GPIO_Pin_4)
-#define MAX7219_CS_HIGH()  GPIO_SetBits(GPIOA, GPIO_Pin_4)
-
-uint8_t SPI1_Send(uint8_t data) {
-    while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) == RESET);
-    SPI_I2S_SendData(SPI1, data);
-    while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) == RESET);
-    return SPI_I2S_ReceiveData(SPI1);
-}
-
-
-void MAX7219_Send(uint8_t address, uint8_t data) {
-    MAX7219_CS_LOW();
-    SPI1_Send(address);
-    SPI1_Send(data);
-    MAX7219_CS_HIGH();
-}
-
-
-void MAX7219_Init(void) {
-    MAX7219_Send(0x09, 0xFF); 
-    MAX7219_Send(0x0A, 0x08); 
-    MAX7219_Send(0x0B, 0x07);
-    MAX7219_Send(0x0C, 0x01); 
-    MAX7219_Send(0x0F, 0x00); 
-
-   
-    for (uint8_t i = 1; i <= 8; i++) {
-        MAX7219_Send(i, 0x0F); // blank
+void delay_ms(uint32_t ms) {
+    uint32_t i, j;
+    for(i=0; i<ms; i++) {
+        for(j=0; j<8000; j++) __NOP();
     }
 }
 
+void GPIO_Config(void) {
+    GPIO_InitTypeDef gpio;
 
-void SPI1_Init(void) {
-    GPIO_InitTypeDef GPIO_InitStructure;
-    SPI_InitTypeDef  SPI_InitStructure;
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 
+    // CS: PA4
+    gpio.GPIO_Pin = CS_PIN;
+    gpio.GPIO_Mode = GPIO_Mode_Out_PP;
+    gpio.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(CS_PORT, &gpio);
 
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_SPI1, ENABLE);
+    // SPI1 SCK (PA5), MOSI (PA7)
+    gpio.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_7;
+    gpio.GPIO_Mode = GPIO_Mode_AF_PP;
+    gpio.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOA, &gpio);
 
+   
+}
 
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_7;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-    GPIO_Init(GPIOA, &GPIO_InitStructure);
+void SPI_Config(void) {
+    SPI_InitTypeDef spi;
 
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE);
 
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-    GPIO_Init(GPIOA, &GPIO_InitStructure);
-    MAX7219_CS_HIGH();
-
-
-    SPI_InitStructure.SPI_Direction = SPI_Direction_1Line_Tx;
-    SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
-    SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
-    SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
-    SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
-    SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
-    SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_16;
-    SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
-    SPI_Init(SPI1, &SPI_InitStructure);
+    spi.SPI_Direction = SPI_Direction_1Line_Tx;
+    spi.SPI_Mode = SPI_Mode_Master;
+    spi.SPI_DataSize = SPI_DataSize_16b;   
+    spi.SPI_CPOL = SPI_CPOL_Low;
+    spi.SPI_CPHA = SPI_CPHA_1Edge;
+    spi.SPI_NSS = SPI_NSS_Soft;
+    spi.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_16;
+    spi.SPI_FirstBit = SPI_FirstBit_MSB;
+    spi.SPI_CRCPolynomial = 7;
+    SPI_Init(SPI1, &spi);
 
     SPI_Cmd(SPI1, ENABLE);
 }
 
-
-void Show_Effect(void) {
-
-    for (uint8_t i = 1; i <= 8; i++) {
-        MAX7219_Send(i, 8); // Hi?n th? s? 8 t?i digit i
-        for (volatile int d = 0; d < 500000; d++); // delay thô
-    }
-
-
-    for (int i = 8; i >= 1; i--) {
-        MAX7219_Send(i, 0x0F); // Blank
-        for (volatile int d = 0; d < 500000; d++);
-    }
+void MAX7219_Send(uint8_t address, uint8_t data) {
+    GPIO_ResetBits(CS_PORT, CS_PIN);
+    SPI_I2S_SendData(SPI1, (address << 8) | data);
+    while(SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_BSY));
+    GPIO_SetBits(CS_PORT, CS_PIN);
 }
 
+void MAX7219_Init(void) {
+    MAX7219_Send(0x09, 0x00); 
+    MAX7219_Send(0x0A, 0x0F); 
+    MAX7219_Send(0x0B, 0x07); 
+    MAX7219_Send(0x0C, 0x01); 
+    MAX7219_Send(0x0F, 0x00); 
+}
 
 int main(void) {
-    SPI1_Init();
+    SystemInit();
+    GPIO_Config();
+    SPI_Config();
     MAX7219_Init();
 
-    while (1) {
-        Show_Effect();
+    while(1) {
+       
+        for(int d=1; d<=8; d++) {
+            MAX7219_Send(d, 0x7F); 
+            delay_ms(300);
+        }
+
+
+        for(int d=8; d>=1; d--) {
+            MAX7219_Send(d, 0x00); 
+            delay_ms(300);
+        }
     }
 }
+
 
